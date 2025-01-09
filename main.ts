@@ -359,7 +359,19 @@ Requirements:
   });
 
   finalSpinner.succeed("Research completed!");
-  return report;
+
+  // Collect all unique source URLs
+  const sourceUrls = new Set<string>();
+  summaries.forEach(summary => {
+    summary.references.forEach(ref => {
+      sourceUrls.add(ref.url);
+    });
+  });
+
+  // Add source URLs to the report
+  const reportWithSources = `${report}\n\nSource:\n${Array.from(sourceUrls).join('\n')}`;
+
+  return reportWithSources;
 }
 
 if (import.meta.main) {
