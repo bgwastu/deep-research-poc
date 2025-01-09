@@ -1,8 +1,18 @@
 {
   "tasks": {
-    "dev": "deno run --watch main.ts"
+    "dev": "deno run -A --watch main.ts"
   },
   "imports": {
-    "@std/assert": "jsr:@std/assert@1"
+    "@ai-sdk/openai": "npm:@ai-sdk/openai@^1.0.14",
+    "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.7",
+    "@std/assert": "jsr:@std/assert@1",
+    "@topcli/spinner": "npm:@topcli/spinner@^2.1.2",
+    "ai": "npm:ai@^4.0.30",
+    "zod": "npm:zod@^3.24.1"
+  },
+  "lint": {
+    "rules": {
+      "no-explicit-any": "off"
+    }
   }
 }
