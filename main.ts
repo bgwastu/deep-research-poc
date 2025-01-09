@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
 import { Command } from "@cliffy/command";
 import { Spinner } from "@topcli/spinner";
@@ -37,8 +38,8 @@ interface ResearchSummary {
   }[];
 }
 
-const model = openai("gpt-4o");
-// const model = google("gemini-1.gemini-1.5-pro");
+const fastModel = google("gemini-1.5-flash");
+const flagshipModel = openai("gpt-4o");
 
 const researchPlanSchema = z.object({
   title: z
@@ -133,10 +134,11 @@ async function getRelevantUrls(
 ) {
   spinner.text = `${research.title}\n - Finding relevant URLs...`;
   const { object: urlRes } = await generateObject({
-    model,
-    prompt: `From the following search results, find the most relevant URL that can be used based on the following query: ${
-      research.query
-    }:
+    model: flagshipModel,
+    prompt: `From the following search results, find the most relevant URL that can make sure this objective is achieved: "${
+      research.objectives
+    }".
+Here is the search results:
 ${JSON.stringify(results)}`,
     schema: z.object({
       urls: z.array(
@@ -169,7 +171,7 @@ async function summarizeContent(
   const chunkSummaries = await Promise.all(
     chunks.map(async (chunk, index) => {
       const { text } = await generateText({
-        model,
+        model: fastModel,
         prompt: `Summarize the following content from "${title}" (part ${
           index + 1
         }/${chunks.length}). Focus on key points related to: ${
@@ -184,7 +186,7 @@ async function summarizeContent(
   if (chunkSummaries.length > 1) {
     spinner.text = `${research.title}\n   Combining summaries from ${url}...`;
     const { text: finalSummary } = await generateText({
-      model,
+      model: fastModel,
       prompt: `Combine these summaries from "${title}" into a coherent summary. Focus on key points related to: ${
         research.objectives
       }\n\nSummaries:\n${chunkSummaries.join("\n\n")}`,
@@ -249,7 +251,7 @@ async function processWebResearch(
   // Final summarization combining all content summaries
   spinner.text = `${research.title}\n   Generating final answer...`;
   const { text: answer } = await generateText({
-    model,
+    model: fastModel,
     prompt: `You're conducting a research on ${
       research.title
     }. Your objective is ${
@@ -277,7 +279,7 @@ async function processAiResearch(
 ): Promise<ResearchSummary> {
   spinner.text = `${research.title}\n   Processing...`;
   const { text: answer } = await generateText({
-    model,
+    model: fastModel,
     prompt: research.query,
   });
   spinner.succeed(`${research.title}`);
@@ -288,7 +290,7 @@ async function deepResearch(prompt: string): Promise<string> {
   const mainSpinner = new Spinner().start("Generating research plan...");
 
   const { object: plan } = await generateObject({
-    model,
+    model: flagshipModel,
     prompt,
     system: systemPrompt,
     schema: researchPlanSchema,
@@ -322,7 +324,7 @@ async function deepResearch(prompt: string): Promise<string> {
   // Generate final report
   const finalSpinner = new Spinner().start("Generating final report...");
   const { text: report } = await generateText({
-    model,
+    model: flagshipModel,
     prompt: `You're conducting a research, the title is ${plan.title}.
 Your objective is: ${plan.objectives}.
 Here is the expected outcomes: ${plan.expectedOutcomes}.

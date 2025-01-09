@@ -6,6 +6,7 @@ A tool for conducting comprehensive research by combining web searches and AI-po
 
 - Deno runtime
 - OpenAI API key
+- Google Generative AI API key
 
 ## Installation
 
@@ -19,6 +20,7 @@ Create a `.env` file with the following:
 
 ```env
 OPENAI_API_KEY=your_api_key_here
+GOOGLE_GENERATIVE_AI_API_KEY=your_api_key_here
 ```
 
 ## Usage

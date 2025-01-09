@@ -10,6 +10,7 @@
     "jsr:@std/fmt@~1.0.2": "1.0.3",
     "jsr:@std/internal@^1.0.5": "1.0.5",
     "jsr:@std/text@~1.0.7": "1.0.9",
+    "npm:@ai-sdk/deepseek@^0.0.2": "0.0.2_zod@3.24.1",
     "npm:@ai-sdk/google@^1.0.13": "1.0.13_zod@3.24.1",
     "npm:@ai-sdk/openai@^1.0.14": "1.0.14_zod@3.24.1",
     "npm:@topcli/spinner@^2.1.2": "2.1.2",
@@ -63,8 +64,25 @@
     }
   },
   "npm": {
+    "@ai-sdk/deepseek@0.0.2_zod@3.24.1": {
+      "integrity": "sha512-WbmRi9rg/GCwctBLv5NPAHIWXFAbUPLAn4OhDKyrr02fHjan7iVwC9IiAwdcS3Ximo/kIH3Wjrw9oA3khC8+DA==",
+      "dependencies": [
+        "@ai-sdk/openai-compatible",
+        "@ai-sdk/provider",
+        "@ai-sdk/provider-utils@2.0.6_zod@3.24.1",
+        "zod"
+      ]
+    },
     "@ai-sdk/google@1.0.13_zod@3.24.1": {
       "integrity": "sha512-L4ej4rd3JpHp0QVqlgr383EedwQXu9tJ3hmJl793Lt8zMLgY+VKZE816v/bz0R3zCyTtiUrxR+LDhbSMuPV7eQ==",
+      "dependencies": [
+        "@ai-sdk/provider",
+        "@ai-sdk/provider-utils@2.0.6_zod@3.24.1",
+        "zod"
+      ]
+    },
+    "@ai-sdk/openai-compatible@0.0.14_zod@3.24.1": {
+      "integrity": "sha512-WJzb7u869z3DBtUtbkUVVxwJ+WXK7taPHZ3/xMsGzMgDg9bHC2+R3h0Hj+lHhHK7AS/y56bbEOCSIuWXt3+MpA==",
       "dependencies": [
         "@ai-sdk/provider",
         "@ai-sdk/provider-utils@2.0.6_zod@3.24.1",
@@ -335,6 +353,7 @@
     "dependencies": [
       "jsr:@cliffy/command@^1.0.0-rc.7",
       "jsr:@std/assert@1",
+      "npm:@ai-sdk/deepseek@^0.0.2",
       "npm:@ai-sdk/google@^1.0.13",
       "npm:@ai-sdk/openai@^1.0.14",
       "npm:@topcli/spinner@^2.1.2",
