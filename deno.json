@@ -3,6 +3,7 @@
     "dev": "deno run -A --watch main.ts"
   },
   "imports": {
+    "@ai-sdk/google": "npm:@ai-sdk/google@^1.0.13",
     "@ai-sdk/openai": "npm:@ai-sdk/openai@^1.0.14",
     "@cliffy/command": "jsr:@cliffy/command@^1.0.0-rc.7",
     "@std/assert": "jsr:@std/assert@1",

@@ -31,16 +31,25 @@ interface SearchResult {
 
 interface ResearchSummary {
   answer: string;
-  urlReferences: string[] | null;
+  references: {
+    url: string;
+    title: string;
+  }[];
 }
 
-const model = openai("gpt-4o-mini");
+const model = openai("gpt-4o");
+// const model = google("gemini-1.gemini-1.5-pro");
 
 const researchPlanSchema = z.object({
   title: z
     .string()
     .describe(
       "The title of the research plan. The good title is the one that can be used to describe the research plan, not adding Research Plan to the title."
+    ),
+  language: z
+    .string()
+    .describe(
+      "The language of the the research report. The language is based on the language of the query."
     ),
   objectives: z
     .string()
@@ -58,7 +67,7 @@ const researchPlanSchema = z.object({
         title: z
           .string()
           .describe(
-            "The title of the research plan. Use active voice and make it concise."
+            "This is what are you currently researching. Use active voice. Example: Find information on the current status of CBDC development and implementation in Indonesia."
           ),
         objectives: z
           .string()
@@ -83,7 +92,7 @@ const researchPlanSchema = z.object({
       })
     )
     .describe(
-      "The research plan outlines that each study will be conducted either through web searches or by consulting the AI. The plan is ordered, and the result of the previous research plan will be used as the input for the next research plan. Make sure to have a very detail and comprehensive research plan."
+      `The research plan outlines that each study will be conducted using either web searches or consultations with AI. Please ensure the plan is detailed and comprehensive while maintaining a focused scope. If any aspects of the research appear too broad, please reserve those for consideration in a subsequent research plan.`
     ),
 });
 
@@ -122,7 +131,7 @@ async function getRelevantUrls(
   research: ResearchPlan,
   spinner: Spinner
 ) {
-  spinner.text = `${research.title}\n   Finding relevant URLs...`;
+  spinner.text = `${research.title}\n - Finding relevant URLs...`;
   const { object: urlRes } = await generateObject({
     model,
     prompt: `From the following search results, find the most relevant URL that can be used based on the following query: ${
@@ -153,15 +162,19 @@ async function summarizeContent(
 ): Promise<string> {
   // Split content into chunks of roughly 10000 characters
   const chunkSize = 10000;
-  const chunks = content.match(new RegExp(`.{1,${chunkSize}}`, 'g')) || [];
-  
+  const chunks = content.match(new RegExp(`.{1,${chunkSize}}`, "g")) || [];
+
   // First level summarization - summarize each chunk
   spinner.text = `${research.title}\n   Summarizing content from ${url}...`;
   const chunkSummaries = await Promise.all(
     chunks.map(async (chunk, index) => {
       const { text } = await generateText({
         model,
-        prompt: `Summarize the following content from "${title}" (part ${index + 1}/${chunks.length}). Focus on key points related to: ${research.objectives}\n\nContent:\n${chunk}`,
+        prompt: `Summarize the following content from "${title}" (part ${
+          index + 1
+        }/${chunks.length}). Focus on key points related to: ${
+          research.objectives
+        }\n\nContent:\n${chunk}`,
       });
       return text;
     })
@@ -172,7 +185,9 @@ async function summarizeContent(
     spinner.text = `${research.title}\n   Combining summaries from ${url}...`;
     const { text: finalSummary } = await generateText({
       model,
-      prompt: `Combine these summaries from "${title}" into a coherent summary. Focus on key points related to: ${research.objectives}\n\nSummaries:\n${chunkSummaries.join('\n\n')}`,
+      prompt: `Combine these summaries from "${title}" into a coherent summary. Focus on key points related to: ${
+        research.objectives
+      }\n\nSummaries:\n${chunkSummaries.join("\n\n")}`,
     });
     return finalSummary;
   }
@@ -184,20 +199,33 @@ async function processWebResearch(
   research: ResearchPlan,
   spinner: Spinner
 ): Promise<ResearchSummary> {
-  // Search results
+  // Search results with pagination
   spinner.text = `${research.title}\n   Searching: ${research.query}`;
-  const searchRes = await fetch(
-    `https://search.maia.id/search?q=${research.query}&format=json&safesearch=0`
-  );
-  const searchData = await searchRes.json();
-  const results = searchData.results.map((result: any) => ({
-    title: result.title,
-    url: result.url,
-    content: result.content,
-  }));
+  const MAX_PAGES = 5;
+  let allResults: SearchResult[] = [];
+
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    spinner.text = `${research.title}\n   Searching: ${research.query} (Page ${page}/${MAX_PAGES})`;
+    const searchRes = await fetch(
+      `https://search.maia.id/search?q=${research.query}&format=json&safesearch=0&pageno=${page}`
+    );
+    const searchData = await searchRes.json();
+
+    // If no results, break the loop
+    if (!searchData.results || searchData.results.length === 0) {
+      break;
+    }
+
+    const pageResults = searchData.results.map((result: any) => ({
+      title: result.title,
+      url: result.url,
+      content: result.content,
+    }));
+    allResults = [...allResults, ...pageResults];
+  }
 
   // Get relevant URLs and fetch content
-  const relevantUrls = await getRelevantUrls(results, research, spinner);
+  const relevantUrls = await getRelevantUrls(allResults, research, spinner);
   const contents = await Promise.all(
     relevantUrls.map(({ url }) => fetchWebContent(url, spinner, research.title))
   );
@@ -222,19 +250,24 @@ async function processWebResearch(
   spinner.text = `${research.title}\n   Generating final answer...`;
   const { text: answer } = await generateText({
     model,
-    prompt: `You're conducting a research on ${research.title}. Your objective is ${
+    prompt: `You're conducting a research on ${
+      research.title
+    }. Your objective is ${
       research.objectives
     }. Here is the expected outcomes: ${
       research.expectedOutcomes
     }. Based on the following summaries from different sources, provide a comprehensive answer:\n\n${contentSummaries.join(
-      '\n\n'
+      "\n\n"
     )}`,
   });
 
   spinner.succeed(`${research.title}`);
   return {
     answer,
-    urlReferences: validContents.map((content) => content.url),
+    references: validContents.map((content) => ({
+      url: content.url,
+      title: content.title,
+    })),
   };
 }
 
@@ -248,7 +281,7 @@ async function processAiResearch(
     prompt: research.query,
   });
   spinner.succeed(`${research.title}`);
-  return { answer, urlReferences: null };
+  return { answer, references: [] };
 }
 
 async function deepResearch(prompt: string): Promise<string> {
@@ -277,7 +310,7 @@ async function deepResearch(prompt: string): Promise<string> {
 
   // Process research plans
   const summaries = await Promise.all(
-    plan.researchPlan.map(async (research, index) => {
+    plan.researchPlan.map((research, index) => {
       const spinner = spinners[index];
       return research.type === "web"
         ? processWebResearch(research, spinner)
@@ -304,16 +337,23 @@ ${summaries
   .map(
     (e, i) =>
       `${i + 1}. ${e.answer}${
-        e.urlReferences
-          ? `\nReferences:${e.urlReferences
-              .map((url) => `- ${url}`)
+        e.references
+          ? `\nReferences:${e.references
+              .map((ref) => `- (${ref.url})[${ref.title}]`)
               .join("\n")}`
           : ""
       }`
   )
   .join("\n")}
 
-Generate a full final report in article format on markdown format. Just don't add objective, expected outcomes, and research plan in the report. Add references for every paragraph or an statement with markdown format.`,
+Requirements:
+- Write in clear, professional article format using markdown
+- Each paragraph/claim must include reference URLs in brackets at the end
+- ALWAYS USE MULTIPLE REFERENCES WHERE POSSIBLE, SEPARATED BY SEMICOLONS (e.g., [full_url1; full_url2; full_url3])
+- The references should be the full URL, not just the domain name.
+- Exclude any objectives, research plans or expected outcomes sections
+- Focus purely on presenting the research findings in a cohesive narrative
+- The language of the report is ${plan.language}`,
   });
 
   finalSpinner.succeed("Research completed!");
